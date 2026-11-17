@@ -33,7 +33,7 @@ telemetry.
 Requirements: Docker with the Compose plugin.
 
 ```bash
-git clone <your-repo-url> heavy-duty
+git clone https://github.com/Errol-Hassall/Heavy-Duty.git heavy-duty
 cd heavy-duty
 cp .env.example .env        # optional; sets the host port
 docker compose up -d --build
