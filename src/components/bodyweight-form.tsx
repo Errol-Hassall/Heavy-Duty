@@ -6,7 +6,7 @@ import { Input } from '#/components/ui/field'
 import { saveBodyMetricFn } from '#/server/api'
 import { todayISO } from '#/lib/dates'
 import { useUnit } from '#/lib/preferences'
-import { toKg, weightStep } from '#/lib/units'
+import { toKg } from '#/lib/units'
 import { cn } from '#/lib/utils'
 
 export function BodyweightForm({
@@ -85,7 +85,7 @@ export function BodyweightForm({
           <Input
             type="number"
             inputMode="decimal"
-            step={weightStep(unit)}
+            step="any"
             min={0}
             value={weight}
             onChange={(event) => {

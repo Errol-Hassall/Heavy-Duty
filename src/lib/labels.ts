@@ -64,3 +64,40 @@ export function supersetLabels(
     }
   })
 }
+
+export interface SupersetBlock {
+  /** Index of the first exercise in the block. */
+  start: number
+  /** Number of consecutive exercises in the block. */
+  length: number
+  /** Group letter when the block is a superset, otherwise null. */
+  letter: string | null
+}
+
+/**
+ * Split exercises into consecutive render blocks. Each standalone exercise is
+ * its own block; adjacent exercises in the same superset share a block so they
+ * can be framed together, while separate supersets stay visually distinct.
+ */
+export function supersetBlocks(
+  groups: Array<number | null | undefined>,
+): SupersetBlock[] {
+  const labels = supersetLabels(groups)
+  const blocks: SupersetBlock[] = []
+
+  labels.forEach((label, index) => {
+    const letter = label.isSuperset ? label.label.charAt(0) : null
+    const previous = blocks[blocks.length - 1]
+    if (
+      letter !== null &&
+      previous?.letter === letter &&
+      previous.start + previous.length === index
+    ) {
+      previous.length += 1
+      return
+    }
+    blocks.push({ start: index, length: 1, letter })
+  })
+
+  return blocks
+}

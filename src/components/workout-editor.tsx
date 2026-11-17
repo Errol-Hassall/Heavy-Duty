@@ -29,7 +29,7 @@ import {
   saveWorkoutFn,
 } from '#/server/api'
 import { relativeDate, todayISO } from '#/lib/dates'
-import { MUSCLE_LABELS, supersetLabels } from '#/lib/labels'
+import { MUSCLE_LABELS, supersetBlocks, supersetLabels } from '#/lib/labels'
 import { useUnit } from '#/lib/preferences'
 import { suggestNext } from '#/lib/progression'
 import type {
@@ -312,6 +312,11 @@ export function WorkoutEditor({
     [draft.exercises],
   )
 
+  const blocks = useMemo(
+    () => supersetBlocks(draft.exercises.map((exercise) => exercise.supersetGroup)),
+    [draft.exercises],
+  )
+
   const workingSetCount = countWorkingSets(draft)
 
   const updateExercise = (
@@ -538,6 +543,42 @@ export function WorkoutEditor({
     return { sets, volumeKg, topSet }
   }, [draft, unit])
 
+  const renderExercise = (exercise: DraftExercise, index: number) => {
+    const label = labels[index]
+    const next = draft.exercises[index + 1]
+    const target = suggestNext(exercise.last, unit)
+    const groupCount =
+      exercise.supersetGroup === null
+        ? 0
+        : draft.exercises.filter(
+            (item) => item.supersetGroup === exercise.supersetGroup,
+          ).length
+    return (
+      <ExerciseCard
+        key={exercise.key}
+        exercise={exercise}
+        index={index}
+        label={label}
+        unit={unit}
+        target={target}
+        groupCount={groupCount}
+        canLink={Boolean(next)}
+        onChangeSet={(setKey, patch) =>
+          updateSet(exercise.key, setKey, patch)
+        }
+        onAddWarmup={() => addWarmup(exercise.key)}
+        onRemoveSet={(setKey) => removeSet(exercise.key, setKey)}
+        onUpdate={(updater) => updateExercise(exercise.key, updater)}
+        onRemove={() => removeExercise(exercise.key)}
+        onMove={(direction) => moveExercise(index, direction)}
+        onLink={() => linkWithNext(index)}
+        onUnlink={() => unlink(exercise.key)}
+        isFirst={index === 0}
+        isLast={index === draft.exercises.length - 1}
+      />
+    )
+  }
+
   return (
     <div className="space-y-4 pb-40">
       <div className="flex items-center justify-between gap-3">
@@ -723,39 +764,38 @@ export function WorkoutEditor({
           </div>
         </Card>
       ) : (
-        draft.exercises.map((exercise, index) => {
-          const label = labels[index]
-          const next = draft.exercises[index + 1]
-          const target = suggestNext(exercise.last, unit)
-          const groupCount =
-            exercise.supersetGroup === null
-              ? 0
-              : draft.exercises.filter(
-                  (item) => item.supersetGroup === exercise.supersetGroup,
-                ).length
+        blocks.map((block) => {
+          if (block.letter === null) {
+            return renderExercise(draft.exercises[block.start], block.start)
+          }
+          const grouped = draft.exercises.slice(
+            block.start,
+            block.start + block.length,
+          )
           return (
-            <ExerciseCard
-              key={exercise.key}
-              exercise={exercise}
-              index={index}
-              label={label}
-              unit={unit}
-              target={target}
-              groupCount={groupCount}
-              canLink={Boolean(next)}
-              onChangeSet={(setKey, patch) =>
-                updateSet(exercise.key, setKey, patch)
-              }
-              onAddWarmup={() => addWarmup(exercise.key)}
-              onRemoveSet={(setKey) => removeSet(exercise.key, setKey)}
-              onUpdate={(updater) => updateExercise(exercise.key, updater)}
-              onRemove={() => removeExercise(exercise.key)}
-              onMove={(direction) => moveExercise(index, direction)}
-              onLink={() => linkWithNext(index)}
-              onUnlink={() => unlink(exercise.key)}
-              isFirst={index === 0}
-              isLast={index === draft.exercises.length - 1}
-            />
+            <section
+              key={`superset-${block.start}`}
+              data-superset-group={block.letter}
+              aria-label={`Superset ${block.letter}`}
+              className="rounded-2xl border border-acid-400/30 bg-acid-400/[0.035] p-2 sm:p-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1.5 pb-2 pt-0.5">
+                <span className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-acid-300">
+                  <span className="flex h-5 w-5 items-center justify-center rounded border border-acid-400/40 bg-acid-400/10 font-mono text-[10px]">
+                    {block.letter}
+                  </span>
+                  Superset {block.letter}
+                </span>
+                <span className="text-[9px] uppercase tracking-[0.12em] text-smoke">
+                  {block.length} exercises back-to-back
+                </span>
+              </div>
+              <div className="space-y-2">
+                {grouped.map((exercise, offset) =>
+                  renderExercise(exercise, block.start + offset),
+                )}
+              </div>
+            </section>
           )
         })
       )}

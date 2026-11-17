@@ -112,12 +112,13 @@ test('validates and stores bodyweight and plots the progress trend', async ({
     page.getByText('That seems out of range. Check the number and unit.'),
   ).toBeVisible()
 
-  await weight.fill('82.5')
+  // Bodyweight accepts tenths rather than only whole/half kilos.
+  await weight.fill('77.1')
   await page.getByRole('button', { name: 'Log', exact: true }).first().click()
   await expect(page.getByText('Bodyweight saved.')).toBeVisible()
 
   await page.reload()
-  await expect(page.getByText('82.5', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('77.1', { exact: true }).first()).toBeVisible()
 
   await page.goto('/progress')
   await expect(
@@ -142,7 +143,7 @@ test('validates and stores bodyweight and plots the progress trend', async ({
   ).toContainText('85 kg')
   await expect(
     page.getByText('All-time change', { exact: true }).locator('..'),
-  ).toContainText('2.5 kg')
+  ).toContainText('7.9 kg')
   await expect(page.getByText('Last logged today')).toBeVisible()
 
   const chart = page.getByRole('img', {
@@ -579,11 +580,11 @@ test('reflects the training history on the dashboard and converts global units',
 
   const unitToggle = page.getByRole('group', { name: 'Weight unit' })
   await unitToggle.getByRole('button', { name: 'lb' }).click()
-  await expect(page.getByText('181.9', { exact: true })).toBeVisible()
+  await expect(page.getByText('170', { exact: true }).first()).toBeVisible()
   await page.reload()
-  await expect(page.getByText('181.9', { exact: true })).toBeVisible()
+  await expect(page.getByText('170', { exact: true }).first()).toBeVisible()
   await unitToggle.getByRole('button', { name: 'kg' }).click()
-  await expect(page.getByText('82.5', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('77.1', { exact: true }).first()).toBeVisible()
 })
 
 test('backfills a session, reorders/removes exercises, links supersets, and deletes it', async ({
@@ -731,4 +732,51 @@ test('uses mobile navigation and hides it inside the workout editor', async ({
   await page.getByRole('link', { name: 'Logbook' }).click()
   await expect(page).toHaveURL(/\/workouts$/)
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
+})
+
+test('frames separate superset groups independently', async ({ page }) => {
+  await page.goto('/workouts/new')
+  await page.getByRole('button', { name: /Blank session/ }).click()
+  await page.getByRole('button', { name: 'Start blank session' }).click()
+  await expect(page).toHaveURL(/\/workouts\/\d+$/)
+
+  await addExercise(page, 'Barbell Curl')
+  await addExercise(page, 'Close-Grip Underhand Pulldown')
+  await addExercise(page, 'Dumbbell Flye')
+  await addExercise(page, 'Incline Bench Press')
+  await expect(page.locator('.card-surface h3')).toHaveCount(4)
+
+  // Nothing starts framed until exercises are linked.
+  await expect(page.locator('[data-superset-group]')).toHaveCount(0)
+
+  await exerciseCard(page, 'Barbell Curl')
+    .getByRole('button', { name: 'Superset with next' })
+    .click()
+  await expect(page.locator('[data-superset-group]')).toHaveCount(1)
+
+  await exerciseCard(page, 'Dumbbell Flye')
+    .getByRole('button', { name: 'Superset with next' })
+    .click()
+
+  const groups = page.locator('[data-superset-group]')
+  await expect(groups).toHaveCount(2)
+  await expect(groups.nth(0)).toHaveAttribute('data-superset-group', 'A')
+  await expect(groups.nth(1)).toHaveAttribute('data-superset-group', 'B')
+  await expect(groups.nth(0)).toContainText('Superset A')
+  await expect(groups.nth(1)).toContainText('Superset B')
+  await expect(groups.nth(0)).toContainText('2 exercises back-to-back')
+  await expect(groups.nth(1)).toContainText('2 exercises back-to-back')
+
+  // Group A must not swallow group B, or standalones, into one giant block.
+  await expect(groups.nth(0)).toContainText('Barbell Curl')
+  await expect(groups.nth(0)).toContainText('Close-Grip Underhand Pulldown')
+  await expect(groups.nth(0)).not.toContainText('Dumbbell Flye')
+  await expect(groups.nth(0)).not.toContainText('Incline Bench Press')
+  await expect(groups.nth(1)).toContainText('Dumbbell Flye')
+  await expect(groups.nth(1)).toContainText('Incline Bench Press')
+  await expect(groups.nth(1)).not.toContainText('Barbell Curl')
+
+  await waitForSaved(page)
+  await page.reload()
+  await expect(page.locator('[data-superset-group]')).toHaveCount(2)
 })
