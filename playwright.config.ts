@@ -6,7 +6,7 @@ const BASE_URL = `http://127.0.0.1:${PORT}`
 const DATABASE_PATH = '.test-data/e2e.db'
 
 // Use the system Chromium when it is available (CI images and this dev box),
-// otherwise fall back to a browser installed through `npx playwright install`.
+// otherwise fall back to a browser installed through `bunx playwright install`.
 const systemChromium =
   process.env.PLAYWRIGHT_CHROMIUM_PATH ??
   (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined)
@@ -42,7 +42,7 @@ export default defineConfig({
     // Every run starts from a fresh SQLite database, then builds and boots the
     // real production server against it.
     command:
-      'rm -f "$DATABASE_PATH" "$DATABASE_PATH-wal" "$DATABASE_PATH-shm" && npm run build && node .output/server/index.mjs',
+      'rm -f "$DATABASE_PATH" "$DATABASE_PATH-wal" "$DATABASE_PATH-shm" && bun run build && bun .output/server/index.mjs',
     url: BASE_URL,
     reuseExistingServer: false,
     timeout: 180_000,

@@ -1,17 +1,17 @@
 # syntax=docker/dockerfile:1
 
 # ---- build ---------------------------------------------------------------
-FROM node:24-alpine AS build
+FROM oven/bun:1-alpine AS build
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 COPY . .
-RUN npm run build
+RUN bun run build
 
 # ---- runtime -------------------------------------------------------------
-FROM node:24-alpine AS runtime
+FROM oven/bun:1-alpine AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production \
@@ -19,16 +19,17 @@ ENV NODE_ENV=production \
     PORT=3000 \
     DATABASE_PATH=/data/heavy-duty.db
 
+# The bun user (UID 1000) ships in the oven/bun image.
 RUN mkdir -p /data \
-  && chown -R node:node /data
+  && chown -R bun:bun /data
 
-COPY --from=build --chown=node:node /app/.output ./.output
+COPY --from=build --chown=bun:bun /app/.output ./.output
 
-USER node
+USER bun
 EXPOSE 3000
 VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:${PORT}/" > /dev/null || exit 1
 
-CMD ["node", ".output/server/index.mjs"]
+CMD ["bun", ".output/server/index.mjs"]

@@ -66,12 +66,12 @@ docker run -d \
 
 ## Local development
 
-Requirements: **Node.js 24 or newer** (the app uses the built-in `node:sqlite`
-module). No native build tools are needed.
+Requirements: **Bun** (the app uses the `node:sqlite` compatibility module,
+which Bun ships built in). No native build tools are needed.
 
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 The dev server runs at <http://localhost:3000>. The SQLite file is created at
@@ -79,11 +79,11 @@ The dev server runs at <http://localhost:3000>. The SQLite file is created at
 automatically.
 
 ```bash
-npm run typecheck   # TypeScript
-npm run lint        # ESLint across src/, tests/, and e2e/
-npm run build       # production build into .output/
-npm start           # run the production build
-npm run db:reset    # delete the local SQLite file (dev only)
+bun run typecheck   # TypeScript
+bun run lint        # ESLint across src/, tests/, and e2e/
+bun run build       # production build into .output/
+bun start           # run the production build
+bun run db:reset    # delete the local SQLite file (dev only)
 ```
 
 ## Tests
@@ -91,12 +91,12 @@ npm run db:reset    # delete the local SQLite file (dev only)
 The project has three layers of tests:
 
 ```bash
-npm run test              # unit + integration (Vitest, real SQLite)
-npm run test:unit         # pure logic only
-npm run test:integration  # repository/database behavior
-npm run test:coverage     # Vitest with V8 coverage
-npm run test:e2e          # Playwright against the production build
-npm run test:all          # full gate: typecheck + lint + both suites
+bun run test              # unit + integration (Vitest, real SQLite)
+bun run test:unit         # pure logic only
+bun run test:integration  # repository/database behavior
+bun run test:coverage     # Vitest with V8 coverage
+bun run test:e2e          # Playwright against the production build
+bun run test:all          # full gate: typecheck + lint + both suites
 ```
 
 The integration suite creates a temporary SQLite file, runs the real migrations
@@ -105,14 +105,14 @@ the app, boots the production server on `127.0.0.1:3100`, and writes to a fresh
 `.test-data/e2e.db`; your development database is never touched.
 
 Playwright uses `/usr/bin/chromium` when it is present. On another machine,
-install a browser with `npx playwright install chromium` or point
+install a browser with `bunx playwright install chromium` or point
 `PLAYWRIGHT_CHROMIUM_PATH` at an existing Chromium executable.
 
 Useful focused commands:
 
 ```bash
-npx vitest run tests/unit/dates.test.ts
-npx playwright test e2e/heavy-duty.spec.ts --headed
+bunx vitest run tests/unit/dates.test.ts
+bunx playwright test e2e/heavy-duty.spec.ts --headed
 ```
 
 ## Continuous integration
@@ -120,10 +120,11 @@ npx playwright test e2e/heavy-duty.spec.ts --headed
 The GitHub Actions pipeline in `.github/workflows/ci.yml` runs on every push
 to `main` and on pull requests, in two parallel jobs:
 
-- **Typecheck, lint, and unit + integration tests** — `npm ci`, then
-  `npm run typecheck`, `npm run lint`, and `npm run test`.
+- **Typecheck, lint, and unit + integration tests** — `bun install
+  --frozen-lockfile`, then `bun run typecheck`, `bun run lint`, and
+  `bun run test`.
 - **Playwright E2E** — installs Playwright's Chromium with system
-  dependencies, then runs `npm run test:e2e` against a fresh production
+  dependencies, then runs `bun run test:e2e` against a fresh production
   build. On failure, the Playwright HTML report and test artifacts are
   uploaded for inspection.
 
@@ -132,7 +133,7 @@ to `main` and on pull requests, in two parallel jobs:
 | Variable        | Default               | Description                                      |
 | --------------- | --------------------- | ------------------------------------------------ |
 | `DATABASE_PATH` | `data/heavy-duty.db`  | SQLite file. The parent directory is created.    |
-| `PORT`          | `3000`                | Port the Node server listens on.                 |
+| `PORT`          | `3000`                | Port the server listens on.                      |
 | `HOST`          | `0.0.0.0`             | Bind address. Use `127.0.0.1` behind a proxy.    |
 | `APP_PORT`      | `3000`                | Compose-only: host port mapped to container 3000.|
 | `NODE_ENV`      | —                     | Set to `production` in the Docker image.         |
@@ -184,7 +185,7 @@ services:
 ```
 
 Create the directory first and give it to UID/GID `1000` (the container runs as
-the unprivileged `node` user):
+the unprivileged `bun` user):
 
 ```bash
 mkdir -p data
