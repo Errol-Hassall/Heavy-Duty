@@ -80,6 +80,7 @@ automatically.
 
 ```bash
 npm run typecheck   # TypeScript
+npm run lint        # ESLint across src/, tests/, and e2e/
 npm run build       # production build into .output/
 npm start           # run the production build
 npm run db:reset    # delete the local SQLite file (dev only)
@@ -95,7 +96,7 @@ npm run test:unit         # pure logic only
 npm run test:integration  # repository/database behavior
 npm run test:coverage     # Vitest with V8 coverage
 npm run test:e2e          # Playwright against the production build
-npm run test:all          # both suites
+npm run test:all          # full gate: typecheck + lint + both suites
 ```
 
 The integration suite creates a temporary SQLite file, runs the real migrations
@@ -113,6 +114,18 @@ Useful focused commands:
 npx vitest run tests/unit/dates.test.ts
 npx playwright test e2e/heavy-duty.spec.ts --headed
 ```
+
+## Continuous integration
+
+The GitHub Actions pipeline in `.github/workflows/ci.yml` runs on every push
+to `main` and on pull requests, in two parallel jobs:
+
+- **Typecheck, lint, and unit + integration tests** — `npm ci`, then
+  `npm run typecheck`, `npm run lint`, and `npm run test`.
+- **Playwright E2E** — installs Playwright's Chromium with system
+  dependencies, then runs `npm run test:e2e` against a fresh production
+  build. On failure, the Playwright HTML report and test artifacts are
+  uploaded for inspection.
 
 ## Configuration
 
