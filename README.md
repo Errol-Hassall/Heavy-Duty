@@ -11,6 +11,18 @@ telemetry.
 ![Database](https://img.shields.io/badge/SQLite-node%3Asqlite-111111)
 ![Style](https://img.shields.io/badge/Tailwind_CSS-v4-111111)
 
+## Screenshots
+
+| | |
+| --- | --- |
+| <img src="docs/screenshots/dashboard.png" alt="Dashboard with today's session, recovery window and bodyweight trend" /> | <img src="docs/screenshots/editor.png" alt="Workout editor with supersets, warm-ups, notes and the rest timer" /> |
+| <img src="docs/screenshots/logbook.png" alt="Logbook with sessions grouped by month" /> | <img src="docs/screenshots/exercise-history.png" alt="Exercise history with a strength-over-time chart" /> |
+| <img src="docs/screenshots/progress.png" alt="Bodyweight progress chart" /> | <img src="docs/screenshots/programs.png" alt="The Heavy Duty programs and principles" /> |
+
+<p align="center">
+  <img src="docs/screenshots/mobile-dashboard.png" alt="Mobile dashboard layout" width="340" />
+</p>
+
 ## Features
 
 - **Session logging** — warm-up sets are optional; every exercise has exactly
