@@ -15,7 +15,7 @@ telemetry.
 
 | | |
 | --- | --- |
-| <img src="docs/screenshots/dashboard.png" alt="Dashboard with today's session, recovery window and bodyweight trend" /> | <img src="docs/screenshots/editor.png" alt="Workout editor with supersets, warm-ups, notes and the rest timer" /> |
+| <img src="docs/screenshots/dashboard.png" alt="Dashboard with today's session, recovery window and bodyweight trend" /> | <img src="docs/screenshots/editor.png" alt="Workout editor with supersets, warm-ups, notes and previous-performance targets" /> |
 | <img src="docs/screenshots/logbook.png" alt="Logbook with sessions grouped by month" /> | <img src="docs/screenshots/exercise-history.png" alt="Exercise history with a strength-over-time chart" /> |
 | <img src="docs/screenshots/progress.png" alt="Bodyweight progress chart" /> | <img src="docs/screenshots/programs.png" alt="The Heavy Duty programs and principles" /> |
 
@@ -32,8 +32,9 @@ telemetry.
   resume later.
 - **Heavy Duty programs** — Chest & Back, Legs & Abs, Shoulders & Arms, and
   Full Body, with the next program suggested automatically.
-- **Double progression** — each exercise shows its last performance and a
-  target: add reps until the top of the 6–10 range, then add weight.
+- **Double progression** — each exercise shows the weight and reps from its
+  last completed session, however long ago that was, plus a target: add reps
+  until the top of the 6–10 range, then add weight.
 - **History charts** — weight per session with reps shown on hover or tap.
 - **Bodyweight tracking** — log weight over time with a 30-day delta.
 - **Exercise library** — 36 seeded movements plus custom exercises.
@@ -221,7 +222,8 @@ and drops privilege escalation via `no-new-privileges`.
   completed session and clears the 96-hour window after four days. It is a
   guideline, not a green light — train only when you feel fully recovered.
 - **Double progression**: stay at the same load and add reps until you reach 10,
-  then add weight and restart at 6.
+  then add weight and restart at 6. The editor always shows the last completed
+  weight and reps so the logbook is the only thing you need to beat.
 - **Beat the logbook** or the set did not count.
 
 Suggested rotation: Chest & Back → Legs & Abs → Shoulders & Arms → rest and

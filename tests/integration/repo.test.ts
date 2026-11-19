@@ -389,6 +389,75 @@ describe('last performance', () => {
     expect(last?.weightKg).not.toBe(95)
   })
 
+  it('keeps the last performance however long ago it was', () => {
+    const old = repo.createWorkout({
+      date: '2025-01-15',
+      status: 'completed',
+      templateSlug: null,
+    })
+    repo.saveWorkout(
+      payload(old, {
+        date: '2025-01-15',
+        exercises: [entry('dumbbell-flye', [working(50, 10)])],
+      }),
+    )
+
+    const current = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'in_progress',
+      templateSlug: null,
+    })
+    repo.saveWorkout(
+      payload(current, {
+        status: 'in_progress',
+        exercises: [entry('dumbbell-flye', [working(55, 8)])],
+      }),
+    )
+
+    const last = repo.getWorkout(current)!.exercises[0].last
+    expect(last).toMatchObject({
+      workoutId: old,
+      date: '2025-01-15',
+      weightKg: 50,
+      reps: 10,
+    })
+    expect(last?.workoutId).not.toBe(current)
+  })
+
+  it('records a bodyweight performance as the last result', () => {
+    const old = repo.createWorkout({
+      date: '2026-11-01',
+      status: 'completed',
+      templateSlug: null,
+    })
+    repo.saveWorkout(
+      payload(old, {
+        date: '2026-11-01',
+        exercises: [entry('pull-up', [working(null, 12)])],
+      }),
+    )
+
+    const current = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'in_progress',
+      templateSlug: null,
+    })
+    repo.saveWorkout(
+      payload(current, {
+        status: 'in_progress',
+        exercises: [entry('pull-up', [working(null, 9)])],
+      }),
+    )
+
+    const last = repo.getWorkout(current)!.exercises[0].last
+    expect(last).toMatchObject({
+      workoutId: old,
+      date: '2026-11-01',
+      weightKg: null,
+      reps: 12,
+    })
+  })
+
   it('includes a same-day session with a lower id', () => {
     const first = repo.createWorkout({
       date: '2026-11-18',

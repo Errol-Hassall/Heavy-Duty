@@ -197,6 +197,11 @@ test('logs a full Chest & Back session with warm-ups, notes, supersets, autosave
     'Superset A',
   )
 
+  // With no earlier completed session, the editor says so explicitly.
+  await expect(exerciseCard(page, 'Dumbbell Flye')).toContainText(
+    'First time logging this movement',
+  )
+
   const flye = exerciseCard(page, 'Dumbbell Flye')
   await flye.getByRole('button', { name: 'Warm-up' }).click()
   await expect(flye.getByLabel('Warm-up 1 weight in kg')).toBeVisible()
@@ -288,16 +293,6 @@ test('logs a full Chest & Back session with warm-ups, notes, supersets, autosave
     ),
   ).toHaveValue('60')
   await waitForSaved(page)
-
-  // Rest timer start/pause/reset and preset interaction.
-  await page.getByRole('button', { name: 'Start rest timer' }).click()
-  await expect(
-    page.getByRole('button', { name: 'Pause rest timer' }),
-  ).toBeVisible()
-  await page.getByRole('button', { name: '3:00', exact: true }).click()
-  await page.getByRole('button', { name: 'Pause rest timer' }).click()
-  await page.getByRole('button', { name: 'Reset rest timer' }).click()
-  await expect(page.getByText('3:00', { exact: true }).first()).toBeVisible()
 
   await page.locator('#workout-title').fill(CUSTOM_TITLE)
   await waitForSaved(page)
@@ -419,6 +414,15 @@ test('repeats a session with cleared loads and logs a second progression', async
       'Form cues, seat height, how the set felt…',
     ),
   ).toHaveValue('Elbows tucked, slow eccentric')
+
+  // The repeated session shows what each movement did last time, even though
+  // the inputs themselves start empty.
+  await expect(exerciseCard(page, 'Dumbbell Flye')).toContainText(
+    `Previous: 60 kg × 8 · ${mediumDate(TODAY)}`,
+  )
+  await expect(exerciseCard(page, 'Incline Bench Press')).toContainText(
+    `Previous: 70 kg × 9 · ${mediumDate(TODAY)}`,
+  )
 
   await fillWorkingSet(page, 'Dumbbell Flye', 65, 6)
   await fillWorkingSet(page, 'Incline Bench Press', 75, 7)

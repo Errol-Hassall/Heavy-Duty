@@ -1,8 +1,24 @@
-import type { WeightUnit } from './types'
-import { roundLoad, toKg } from './units'
+import { formatDate } from './dates'
+import type { LastPerformance, WeightUnit } from './types'
+import { formatWeight, roundLoad, toKg } from './units'
 
 export const REP_MIN = 6
 export const REP_MAX = 10
+
+/**
+ * Summarise the last completed working set for an exercise. The absolute date
+ * is always included, so a session from months or years ago is still readable
+ * at a glance.
+ */
+export function formatLastPerformance(
+  last: Pick<LastPerformance, 'weightKg' | 'reps' | 'date'> | null,
+  unit: WeightUnit,
+): string {
+  if (!last) return 'No previous performance'
+  const weight = last.weightKg === null ? 'BW' : formatWeight(last.weightKg, unit)
+  const reps = last.reps === null ? '—' : `${last.reps}`
+  return `${weight} × ${reps} · ${formatDate(last.date, 'medium')}`
+}
 
 export interface NextTarget {
   weightKg: number | null

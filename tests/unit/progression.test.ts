@@ -1,5 +1,40 @@
 import { describe, expect, it } from 'vitest'
-import { REP_MAX, REP_MIN, suggestNext } from '#/lib/progression'
+import {
+  REP_MAX,
+  REP_MIN,
+  formatLastPerformance,
+  suggestNext,
+} from '#/lib/progression'
+
+describe('formatLastPerformance', () => {
+  it('summarises the last completed working set with an absolute date', () => {
+    expect(
+      formatLastPerformance({ weightKg: 90, reps: 8, date: '2026-10-14' }, 'kg'),
+    ).toBe('90 kg × 8 · Wed, 14 Oct 2026')
+  })
+
+  it('converts the load into the display unit', () => {
+    expect(
+      formatLastPerformance({ weightKg: 100, reps: 5, date: '2026-10-14' }, 'lb'),
+    ).toBe('220.5 lb × 5 · Wed, 14 Oct 2026')
+  })
+
+  it('labels bodyweight movements', () => {
+    expect(
+      formatLastPerformance({ weightKg: null, reps: 12, date: '2026-10-14' }, 'kg'),
+    ).toBe('BW × 12 · Wed, 14 Oct 2026')
+  })
+
+  it('handles a missing rep count', () => {
+    expect(
+      formatLastPerformance({ weightKg: 60, reps: null, date: '2026-10-14' }, 'kg'),
+    ).toBe('60 kg × — · Wed, 14 Oct 2026')
+  })
+
+  it('reports when there is no previous performance', () => {
+    expect(formatLastPerformance(null, 'kg')).toBe('No previous performance')
+  })
+})
 
 describe('suggestNext', () => {
   it('sets a baseline for a new movement', () => {

@@ -22,7 +22,6 @@ import { Card } from '#/components/ui/card'
 import { ConfirmDialog, Dialog } from '#/components/ui/dialog'
 import { Input } from '#/components/ui/field'
 import { ExercisePicker } from '#/components/exercise-picker'
-import { RestTimer } from '#/components/rest-timer'
 import {
   deleteWorkoutFn,
   repeatWorkoutFn,
@@ -31,7 +30,7 @@ import {
 import { relativeDate, todayISO } from '#/lib/dates'
 import { MUSCLE_LABELS, supersetBlocks, supersetLabels } from '#/lib/labels'
 import { useUnit } from '#/lib/preferences'
-import { suggestNext } from '#/lib/progression'
+import { formatLastPerformance, suggestNext } from '#/lib/progression'
 import type {
   Exercise,
   ExerciseListItem,
@@ -722,8 +721,6 @@ export function WorkoutEditor({
             />
           ) : null}
 
-          <RestTimer />
-
           {saveState === 'error' ? (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-ember-500/35 bg-ember-500/10 px-3 py-2.5 text-xs text-ember-400">
               <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
@@ -1016,10 +1013,8 @@ function ExerciseCard({
 }) {
   const working = exercise.sets.find((set) => set.kind === 'working')
   const warmups = exercise.sets.filter((set) => set.kind === 'warmup')
-  const hint = exercise.last
-    ? `Last ${formatWeight(exercise.last.weightKg, unit)}${
-        exercise.last.reps !== null ? ` × ${exercise.last.reps}` : ''
-      } · ${relativeDate(exercise.last.date)}`
+  const previous = exercise.last
+    ? `Previous: ${formatLastPerformance(exercise.last, unit)}`
     : 'First time logging this movement'
 
   return (
@@ -1090,7 +1085,7 @@ function ExerciseCard({
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-line/70 bg-ink-900/50 px-2.5 py-1.5">
-          <span className="text-[10px] text-smoke">{hint}</span>
+          <span className="text-[10px] text-ash">{previous}</span>
           {target.kind === 'load' ? (
             <Badge tone="acid">Add weight</Badge>
           ) : target.kind === 'reps' ? (

@@ -107,13 +107,6 @@ export function relativeDate(isoDate: string, today = todayISO()): string {
   return formatDate(isoDate, 'short')
 }
 
-export function formatDuration(totalSeconds: number): string {
-  const safe = Math.max(0, Math.round(totalSeconds))
-  const minutes = Math.floor(safe / 60)
-  const seconds = safe % 60
-  return `${minutes}:${`${seconds}`.padStart(2, '0')}`
-}
-
 export function weekdayName(isoDate: string): string {
   return new Intl.DateTimeFormat('en-GB', { weekday: 'long' }).format(
     parseISODate(isoDate),
