@@ -169,6 +169,7 @@ the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets.
 | `PORT`          | `3000`                | Port the server listens on.                      |
 | `HOST`          | `0.0.0.0`             | Bind address. Use `127.0.0.1` behind a proxy.    |
 | `APP_PORT`      | `3000`                | Compose-only: host port mapped to container 3000.|
+| `PUID` / `PGID` | `1000` / `1000`       | Docker only: owner of `/data`; the app drops to this user. |
 | `NODE_ENV`      | —                     | Set to `production` in the Docker image.         |
 
 Schema migrations and exercise seeding run automatically at startup. The app
@@ -178,6 +179,9 @@ uses `PRAGMA user_version` and idempotent inserts, so upgrades are safe.
 
 All state is in one SQLite database inside `/data`. WAL mode is enabled, so the
 database directory may also contain `-wal` and `-shm` files.
+
+If a restore leaves files owned by another user, the next container start
+re-chowns `/data` to `PUID:PGID`, so the app can write again.
 
 **Back up the named volume:**
 
@@ -215,15 +219,15 @@ services:
   heavy-duty:
     volumes:
       - ./data:/data
+    environment:
+      PUID: 1000
+      PGID: 1000
 ```
 
-Create the directory first and give it to UID/GID `1000` (the container runs as
-the unprivileged `bun` user):
-
-```bash
-mkdir -p data
-sudo chown -R 1000:1000 data
-```
+The entrypoint takes ownership of `/data` as `PUID:PGID` on startup, then runs
+the app as that user, so no manual `chown` is needed. Set both to your host user
+(`id -u`, `id -g`) if it is not `1000`. The filesystem must support `chown`;
+CIFS/SMB shares usually do not.
 
 ## Security
 
@@ -231,8 +235,10 @@ sudo chown -R 1000:1000 data
 change your training log. Do not expose it directly to the public internet.
 
 For remote access, put it behind a VPN (Tailscale, WireGuard) or a reverse proxy
-that enforces authentication and HTTPS. The container runs as a non-root user
-and drops privilege escalation via `no-new-privileges`.
+that enforces authentication and HTTPS. The app process runs as an unprivileged
+user (`PUID`/`PGID`, default `1000:1000`); the entrypoint starts as root only
+long enough to take ownership of `/data`, then drops privileges. The container
+also sets `no-new-privileges`.
 
 ## How the program works
 

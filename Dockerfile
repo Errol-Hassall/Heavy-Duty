@@ -19,17 +19,19 @@ ENV NODE_ENV=production \
     PORT=3000 \
     DATABASE_PATH=/data/heavy-duty.db
 
-# The bun user (UID 1000) ships in the oven/bun image.
-RUN mkdir -p /data \
+# Starts as root only so the entrypoint can give /data to PUID:PGID, then drops.
+RUN apk add --no-cache su-exec \
+  && mkdir -p /data \
   && chown -R bun:bun /data
 
 COPY --from=build --chown=bun:bun /app/.output ./.output
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-USER bun
 EXPOSE 3000
 VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:${PORT}/" > /dev/null || exit 1
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["bun", ".output/server/index.mjs"]
