@@ -45,6 +45,21 @@ telemetry.
 
 Requirements: Docker with the Compose plugin.
 
+### Pull the published image
+
+```bash
+curl -O https://raw.githubusercontent.com/Errol-Hassall/Heavy-Duty/main/docker-compose.hub.yml
+docker compose -f docker-compose.hub.yml up -d
+```
+
+Open <http://localhost:3000>.
+
+`latest` tracks `main`. Every push also publishes a short commit SHA tag, and
+pushing a git tag like `v1.1.0` publishes `1.1.0` and `1.1`. Edit the `image:`
+line to pin one.
+
+### Build from source
+
 ```bash
 git clone https://github.com/Errol-Hassall/Heavy-Duty.git heavy-duty
 cd heavy-duty
@@ -60,7 +75,7 @@ To use a different host port, edit `APP_PORT` in `.env`:
 APP_PORT=8080
 ```
 
-Then run `docker compose up -d` again.
+Then run the same `up` command again.
 
 The database lives in the named volume `heavy-duty-data`, so recreating the
 container does not lose your log.
@@ -140,6 +155,11 @@ to `main` and on pull requests, in two parallel jobs:
   dependencies, then runs `bun run test:e2e` against a fresh production
   build. On failure, the Playwright HTML report and test artifacts are
   uploaded for inspection.
+
+A separate workflow, `.github/workflows/docker.yml`, builds the image on every
+push to `main` and publishes it to Docker Hub as `errolhassall/heavy-duty`
+(`latest`, a short commit SHA tag, and semver tags for `v*` git tags). It needs
+the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets.
 
 ## Configuration
 

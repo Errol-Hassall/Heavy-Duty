@@ -1,0 +1,13 @@
+services:
+  heavy-duty:
+    image: errolhassall/heavy-duty:latest
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - heavy-duty-data:/data
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  heavy-duty-data:
