@@ -4,7 +4,7 @@ import { Dialog } from '#/components/ui/dialog'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/field'
 import { Badge } from '#/components/ui/badge'
-import { CreateExerciseForm } from '#/components/create-exercise-form'
+import { ExerciseForm } from '#/components/exercise-form'
 import { EQUIPMENT_LABELS, MUSCLE_LABELS } from '#/lib/labels'
 import { MUSCLE_GROUPS } from '#/lib/types'
 import type {
@@ -80,9 +80,9 @@ export function ExercisePicker({
       size="lg"
     >
       {creating ? (
-        <CreateExerciseForm
+        <ExerciseForm
           initialName={query}
-          onCreated={handleCreated}
+          onSaved={handleCreated}
           onCancel={() => setCreating(false)}
         />
       ) : (

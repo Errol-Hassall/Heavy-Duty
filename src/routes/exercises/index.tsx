@@ -6,7 +6,7 @@ import { Card } from '#/components/ui/card'
 import { Dialog } from '#/components/ui/dialog'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/field'
-import { CreateExerciseForm } from '#/components/create-exercise-form'
+import { ExerciseForm } from '#/components/exercise-form'
 import { listExercisesFn } from '#/server/api'
 import { relativeDate } from '#/lib/dates'
 import { EQUIPMENT_LABELS, MUSCLE_LABELS } from '#/lib/labels'
@@ -222,8 +222,8 @@ function ExercisesPage() {
         title="New exercise"
         description="Custom movements live alongside the Heavy Duty staples."
       >
-        <CreateExerciseForm
-          onCreated={async () => {
+        <ExerciseForm
+          onSaved={async () => {
             setCreateOpen(false)
             await router.invalidate()
           }}

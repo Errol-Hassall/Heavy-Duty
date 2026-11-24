@@ -46,6 +46,14 @@ export const exerciseSchema = z.object({
   notes: z.string().max(1000).nullable(),
 })
 
+export const updateExerciseSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().min(2).max(80),
+  muscleGroup: z.enum(MUSCLE_GROUPS as [string, ...string[]]),
+  equipment: z.enum(EQUIPMENT as [string, ...string[]]),
+  notes: z.string().max(1000).nullable(),
+})
+
 export const bodyMetricSchema = z.object({
   date: isoDate,
   weightKg: z.number().finite().min(20).max(500),

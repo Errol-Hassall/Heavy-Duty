@@ -706,6 +706,52 @@ export function createExercise(input: {
   return mapExercise(row)
 }
 
+export function updateExercise(
+  id: number,
+  input: {
+    name: string
+    muscleGroup: MuscleGroup
+    equipment: Equipment
+    notes: string | null
+  },
+): Exercise | null {
+  const db = getDb()
+  // The slug is the stable key program prefill relies on, so it never
+  // follows a rename.
+  const result = db
+    .prepare(
+      `UPDATE exercises
+       SET name = ?, muscle_group = ?, equipment = ?, notes = ?
+       WHERE id = ?`,
+    )
+    .run(
+      input.name.trim(),
+      input.muscleGroup,
+      input.equipment,
+      input.notes?.trim() || null,
+      id,
+    )
+  if (Number(result.changes) === 0) return null
+  const row = db
+    .prepare('SELECT * FROM exercises WHERE id = ?')
+    .get(id) as Row
+  return mapExercise(row)
+}
+
+export function deleteExercise(id: number): void {
+  const db = getDb()
+  db.exec('BEGIN')
+  try {
+    // Sets cascade from workout_exercises; the sessions themselves survive.
+    db.prepare('DELETE FROM workout_exercises WHERE exercise_id = ?').run(id)
+    db.prepare('DELETE FROM exercises WHERE id = ?').run(id)
+    db.exec('COMMIT')
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
+
 export function listBodyMetrics(): BodyMetric[] {
   const rows = getDb()
     .prepare('SELECT * FROM body_metrics ORDER BY date ASC, id ASC')

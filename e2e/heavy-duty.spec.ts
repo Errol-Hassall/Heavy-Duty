@@ -838,3 +838,70 @@ test('preloads the previous full-body session when starting it again', async ({
     FULL_BODY_EXERCISES.filter((name) => name !== 'Triceps Pressdown'),
   )
 })
+
+test('edits an exercise and deletes one with logged history', async ({
+  page,
+}) => {
+  // Machine Pullover has exactly one completed session (55 kg × 10) from the
+  // first Chest & Back workout.
+  await page.goto('/exercises')
+  await page.getByRole('link', { name: /Machine Pullover/ }).click()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Machine Pullover' }),
+  ).toBeVisible()
+
+  const stats = page.locator('dl')
+  await expect(
+    stats.getByText('Sessions', { exact: true }).locator('..'),
+  ).toContainText('1')
+
+  // Edit all the fields; logged history must survive the rename.
+  await page.getByRole('button', { name: 'Edit' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('Exercise name').fill('Machine Pullover (New)')
+  await dialog.getByLabel('Equipment').selectOption('cable')
+  await dialog.getByLabel('Notes (optional)').fill('Edited during e2e run')
+  await dialog.getByRole('button', { name: 'Save changes' }).click()
+  await expect(dialog).toBeHidden()
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Machine Pullover (New)' }),
+  ).toBeVisible()
+  await expect(page.getByText('Edited during e2e run')).toBeVisible()
+  await expect(
+    stats.getByText('Best load', { exact: true }).locator('..'),
+  ).toContainText('55 kg')
+  await expect(
+    stats.getByText('Sessions', { exact: true }).locator('..'),
+  ).toContainText('1')
+
+  // Delete is cancelable, then cascades through the logged sets.
+  await page.getByRole('button', { name: 'Delete' }).click()
+  const confirm = page.getByRole('dialog')
+  await expect(confirm).toBeVisible()
+  await expect(confirm).toContainText('from 1 past session')
+  await confirm.getByRole('button', { name: 'Cancel' }).click()
+  await expect(confirm).toBeHidden()
+
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Delete exercise' })
+    .click()
+  await expect(page).toHaveURL(/\/exercises$/)
+
+  await expect(
+    page.getByRole('link', { name: /Machine Pullover/ }),
+  ).toHaveCount(0)
+  // One seeded movement fewer, the custom one from earlier is still there.
+  await expect(page.getByText('36 movements · 1 custom')).toBeVisible()
+
+  // The Chest & Back session survives without the deleted exercise.
+  await page.goto('/workouts')
+  const row = page
+    .getByRole('link')
+    .filter({ hasText: CUSTOM_TITLE })
+    .first()
+  await expect(row).toContainText('4 exercises')
+})

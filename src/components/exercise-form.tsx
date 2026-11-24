@@ -2,24 +2,32 @@ import { useState } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Field, Input, Select, Textarea } from '#/components/ui/field'
-import { createExerciseFn } from '#/server/api'
+import { createExerciseFn, updateExerciseFn } from '#/server/api'
 import { EQUIPMENT_LABELS, MUSCLE_LABELS } from '#/lib/labels'
 import { EQUIPMENT, MUSCLE_GROUPS } from '#/lib/types'
 import type { Equipment, Exercise, MuscleGroup } from '#/lib/types'
 
-export function CreateExerciseForm({
-  onCreated,
+export function ExerciseForm({
+  onSaved,
   onCancel,
+  initial,
   initialName = '',
 }: {
-  onCreated: (exercise: Exercise) => void
+  onSaved: (exercise: Exercise) => void
   onCancel?: () => void
+  /** When set, the form edits this exercise instead of creating one. */
+  initial?: Pick<Exercise, 'id' | 'name' | 'muscleGroup' | 'equipment' | 'notes'>
   initialName?: string
 }) {
-  const [name, setName] = useState(initialName)
-  const [muscleGroup, setMuscleGroup] = useState<MuscleGroup>('chest')
-  const [equipment, setEquipment] = useState<Equipment>('barbell')
-  const [notes, setNotes] = useState('')
+  const editing = initial !== undefined
+  const [name, setName] = useState(initial?.name ?? initialName)
+  const [muscleGroup, setMuscleGroup] = useState<MuscleGroup>(
+    initial?.muscleGroup ?? 'chest',
+  )
+  const [equipment, setEquipment] = useState<Equipment>(
+    initial?.equipment ?? 'barbell',
+  )
+  const [notes, setNotes] = useState(initial?.notes ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -32,22 +40,32 @@ export function CreateExerciseForm({
     setBusy(true)
     setError(null)
     try {
-      const exercise = await createExerciseFn({
-        data: {
-          name: name.trim(),
-          muscleGroup,
-          equipment,
-          notes: notes.trim() || null,
-        },
-      })
+      const exercise = editing
+        ? await updateExerciseFn({
+            data: {
+              id: initial.id,
+              name: name.trim(),
+              muscleGroup,
+              equipment,
+              notes: notes.trim() || null,
+            },
+          })
+        : await createExerciseFn({
+            data: {
+              name: name.trim(),
+              muscleGroup,
+              equipment,
+              notes: notes.trim() || null,
+            },
+          })
       setName('')
       setNotes('')
-      onCreated(exercise)
+      onSaved(exercise)
     } catch (cause) {
       setError(
         cause instanceof Error
           ? cause.message
-          : 'Could not create the exercise.',
+          : 'Could not save the exercise.',
       )
     } finally {
       setBusy(false)
@@ -130,7 +148,7 @@ export function CreateExerciseForm({
         ) : null}
         <Button type="submit" variant="primary" disabled={busy}>
           {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-          Create exercise
+          {editing ? 'Save changes' : 'Create exercise'}
         </Button>
       </div>
     </form>

@@ -3,18 +3,22 @@ import {
   Link,
   createFileRoute,
   notFound,
+  useNavigate,
+  useRouter,
 } from '@tanstack/react-router'
-import { ArrowLeft, ChartLine } from 'lucide-react'
+import { ArrowLeft, ChartLine, Pencil, Trash2 } from 'lucide-react'
 import { PageHeader } from '#/components/ui/page-header'
 import { Card, SectionLabel } from '#/components/ui/card'
 import { Badge } from '#/components/ui/badge'
 import { Segmented } from '#/components/ui/segmented'
-import { buttonClass } from '#/components/ui/button'
+import { Button, buttonClass } from '#/components/ui/button'
+import { ConfirmDialog, Dialog } from '#/components/ui/dialog'
 import {
   ExerciseTrend,
   ExerciseTrendStats,
 } from '#/components/exercise-trend'
-import { getExerciseProgressFn } from '#/server/api'
+import { ExerciseForm } from '#/components/exercise-form'
+import { deleteExerciseFn, getExerciseProgressFn } from '#/server/api'
 import {
   addDaysISO,
   formatDate,
@@ -57,7 +61,22 @@ const RANGE_DAYS: Record<Exclude<Range, 'all'>, number> = {
 function ExercisePage() {
   const progress = Route.useLoaderData()
   const unit = useUnit()
+  const router = useRouter()
+  const navigate = useNavigate()
   const [range, setRange] = useState<Range>('all')
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+
+  const handleDelete = async () => {
+    setDeleteBusy(true)
+    try {
+      await deleteExerciseFn({ data: { id: progress.exercise.id } })
+      await navigate({ to: '/exercises' })
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
 
   const cutoff =
     range === 'all' ? null : addDaysISO(todayISO(), -RANGE_DAYS[range])
@@ -91,9 +110,19 @@ function ExercisePage() {
           } logged ${progress.sessions.length === 1 ? 'session' : 'sessions'}`
         }
         actions={
-          progress.exercise.isCustom ? (
-            <Badge tone="outline">Custom movement</Badge>
-          ) : null
+          <>
+            {progress.exercise.isCustom ? (
+              <Badge tone="outline">Custom movement</Badge>
+            ) : null}
+            <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </>
         }
       />
 
@@ -227,6 +256,36 @@ function ExercisePage() {
           </Card>
         ) : null}
       </div>
+
+      <Dialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit exercise"
+        description="Logged history stays attached to the movement."
+      >
+        <ExerciseForm
+          initial={progress.exercise}
+          onSaved={async () => {
+            setEditOpen(false)
+            await router.invalidate()
+          }}
+          onCancel={() => setEditOpen(false)}
+        />
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete this exercise?"
+        description={
+          progress.sessions.length > 0
+            ? `Removes ${progress.exercise.name} from the library and from ${progress.sessions.length} past ${progress.sessions.length === 1 ? 'session' : 'sessions'}. The sessions themselves stay in your logbook.`
+            : `${progress.exercise.name} has no logged sessions and will be removed from your library.`
+        }
+        confirmLabel="Delete exercise"
+        busy={deleteBusy}
+      />
     </div>
   )
 }

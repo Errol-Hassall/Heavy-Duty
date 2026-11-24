@@ -7,6 +7,7 @@ import {
   isoDate,
   repeatWorkoutSchema,
   setSchema,
+  updateExerciseSchema,
   workoutSaveSchema,
 } from '#/server/schemas'
 
@@ -251,6 +252,64 @@ describe('exerciseSchema', () => {
     ).toBe(false)
     expect(
       exerciseSchema.safeParse({ ...base, equipment: 'kettlebell' }).success,
+    ).toBe(false)
+  })
+})
+
+describe('updateExerciseSchema', () => {
+  const base = {
+    id: 7,
+    name: 'Machine Pullover',
+    muscleGroup: 'back',
+    equipment: 'machine',
+    notes: null,
+  }
+
+  it('accepts a valid update', () => {
+    expect(updateExerciseSchema.safeParse(base).success).toBe(true)
+  })
+
+  it('rejects missing or invalid ids', () => {
+    expect(updateExerciseSchema.safeParse({ ...base, id: 0 }).success).toBe(
+      false,
+    )
+    expect(updateExerciseSchema.safeParse({ ...base, id: -1 }).success).toBe(
+      false,
+    )
+    expect(updateExerciseSchema.safeParse({ ...base, id: 1.5 }).success).toBe(
+      false,
+    )
+    expect(
+      updateExerciseSchema.safeParse({
+        name: base.name,
+        muscleGroup: base.muscleGroup,
+        equipment: base.equipment,
+        notes: null,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('enforces name and note lengths', () => {
+    expect(updateExerciseSchema.safeParse({ ...base, name: 'X' }).success).toBe(
+      false,
+    )
+    expect(
+      updateExerciseSchema.safeParse({ ...base, name: 'x'.repeat(81) })
+        .success,
+    ).toBe(false)
+    expect(
+      updateExerciseSchema.safeParse({ ...base, notes: 'x'.repeat(1001) })
+        .success,
+    ).toBe(false)
+  })
+
+  it('rejects unknown muscle groups and equipment', () => {
+    expect(
+      updateExerciseSchema.safeParse({ ...base, muscleGroup: 'neck' }).success,
+    ).toBe(false)
+    expect(
+      updateExerciseSchema.safeParse({ ...base, equipment: 'kettlebell' })
+        .success,
     ).toBe(false)
   })
 })

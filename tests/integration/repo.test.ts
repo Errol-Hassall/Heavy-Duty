@@ -1018,6 +1018,121 @@ describe('exercise library', () => {
     expect(progress.bestWeightKg).toBe(65)
     expect(repo.getExerciseProgress(999_999)).toBeNull()
   })
+
+  it('updates an exercise in place and keeps its slug, custom flag, and history', () => {
+    const custom = repo.createExercise({
+      name: 'Cable Y Raise',
+      muscleGroup: 'shoulders',
+      equipment: 'cable',
+      notes: null,
+    })
+    const workout = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'completed',
+      templateSlug: null,
+    })
+    repo.saveWorkout(
+      payload(workout, {
+        exercises: [
+          {
+            exerciseId: custom.id,
+            position: 0,
+            supersetGroup: null,
+            notes: null,
+            sets: [working(30, 8)],
+          },
+          entry('deadlift', [working(100, 5)]),
+        ],
+      }),
+    )
+
+    const updated = repo.updateExercise(custom.id, {
+      name: '  Cable Y Raise (Modified)  ',
+      muscleGroup: 'back',
+      equipment: 'machine',
+      notes: '  New cue  ',
+    })!
+    expect(updated).toMatchObject({
+      id: custom.id,
+      name: 'Cable Y Raise (Modified)',
+      slug: 'cable-y-raise',
+      muscleGroup: 'back',
+      equipment: 'machine',
+      notes: 'New cue',
+      isCustom: true,
+    })
+
+    // History follows the row id, not the name.
+    const progress = repo.getExerciseProgress(custom.id)!
+    expect(progress.sessions).toHaveLength(1)
+    expect(
+      repo.listExercises().find((exercise) => exercise.slug === 'cable-y-raise')!.sessionCount,
+    ).toBe(1)
+
+    // Whitespace-only notes clear back to null.
+    const cleared = repo.updateExercise(custom.id, {
+      name: 'Cable Y Raise',
+      muscleGroup: 'shoulders',
+      equipment: 'cable',
+      notes: '   ',
+    })!
+    expect(cleared.notes).toBeNull()
+
+    expect(
+      repo.updateExercise(999_999, {
+        name: 'Ghost',
+        muscleGroup: 'arms',
+        equipment: 'cable',
+        notes: null,
+      }),
+    ).toBeNull()
+  })
+
+  it('deletes an exercise and its history rows but keeps the sessions', () => {
+    const custom = repo.createExercise({
+      name: 'Cable Y Raise',
+      muscleGroup: 'shoulders',
+      equipment: 'cable',
+      notes: null,
+    })
+    const workout = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'completed',
+      templateSlug: null,
+    })
+    repo.saveWorkout(
+      payload(workout, {
+        exercises: [
+          {
+            exerciseId: custom.id,
+            position: 0,
+            supersetGroup: null,
+            notes: null,
+            sets: [warmup(40, 10), working(60, 8)],
+          },
+          entry('deadlift', [working(100, 5)]),
+        ],
+      }),
+    )
+
+    expect(countRows('workout_exercises')).toBe(2)
+    expect(countRows('workout_sets')).toBe(3)
+
+    repo.deleteExercise(custom.id)
+    expect(repo.getExercise(custom.id)).toBeNull()
+    expect(repo.getExerciseProgress(custom.id)).toBeNull()
+
+    // The custom rows are gone; the other exercise and its session survive.
+    const workoutAfter = repo.getWorkout(workout)!
+    expect(workoutAfter).not.toBeNull()
+    expect(workoutAfter.exercises).toHaveLength(1)
+    expect(workoutAfter.exercises[0].name).toBe('Deadlift')
+    expect(countRows('workout_exercises')).toBe(1)
+    expect(countRows('workout_sets')).toBe(1)
+
+    // Deleting again is a no-op.
+    expect(() => repo.deleteExercise(custom.id)).not.toThrow()
+  })
 })
 
 describe('body metrics', () => {

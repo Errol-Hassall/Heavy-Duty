@@ -39,7 +39,9 @@ telemetry.
   until the top of the 6–10 range, then add weight.
 - **History charts** — weight per session with reps shown on hover or tap.
 - **Bodyweight tracking** — log weight over time with a 30-day delta.
-- **Exercise library** — 36 seeded movements plus custom exercises.
+- **Exercise library** — 36 seeded movements plus custom exercises; edit any
+  movement's details or delete it entirely (delete also removes it from past
+  sessions).
 - **Metric or imperial** — toggle kg/lb; weights are stored in kg.
 - **Responsive** — desktop sidebar and a mobile layout built for the gym floor.
 

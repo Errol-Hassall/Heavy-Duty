@@ -6,6 +6,7 @@ import {
   exerciseSchema,
   idSchema,
   repeatWorkoutSchema,
+  updateExerciseSchema,
   workoutSaveSchema,
 } from './schemas'
 import * as repo from './repo'
@@ -70,6 +71,26 @@ export const createExerciseFn = createServerFn({ method: 'POST' })
       notes: data.notes,
     }),
   )
+
+export const updateExerciseFn = createServerFn({ method: 'POST' })
+  .validator(updateExerciseSchema)
+  .handler(({ data }) => {
+    const exercise = repo.updateExercise(data.id, {
+      name: data.name,
+      muscleGroup: data.muscleGroup as (typeof MUSCLE_GROUPS)[number],
+      equipment: data.equipment as (typeof EQUIPMENT)[number],
+      notes: data.notes,
+    })
+    if (!exercise) throw new Error('Exercise not found')
+    return exercise
+  })
+
+export const deleteExerciseFn = createServerFn({ method: 'POST' })
+  .validator(idSchema)
+  .handler(({ data }) => {
+    repo.deleteExercise(data.id)
+    return { ok: true as const }
+  })
 
 export const saveBodyMetricFn = createServerFn({ method: 'POST' })
   .validator(bodyMetricSchema)
