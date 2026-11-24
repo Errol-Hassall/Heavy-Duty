@@ -75,6 +75,7 @@ export interface WorkoutExercise {
   slug: string
   name: string
   muscleGroup: MuscleGroup
+  equipment: Equipment
   position: number
   supersetGroup: number | null
   notes: string | null

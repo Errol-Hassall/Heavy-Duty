@@ -309,7 +309,7 @@ export function getWorkout(id: number): WorkoutDetail | null {
       `
       SELECT
         we.id, we.exercise_id, we.position, we.superset_group, we.notes,
-        e.slug, e.name, e.muscle_group
+        e.slug, e.name, e.muscle_group, e.equipment
       FROM workout_exercises we
       JOIN exercises e ON e.id = we.exercise_id
       WHERE we.workout_id = ?
@@ -351,6 +351,7 @@ export function getWorkout(id: number): WorkoutDetail | null {
       slug: str(row.slug),
       name: str(row.name),
       muscleGroup: str(row.muscle_group) as MuscleGroup,
+      equipment: str(row.equipment) as Equipment,
       position: Number(row.position),
       supersetGroup: num(row.superset_group),
       notes: row.notes === null ? null : str(row.notes),

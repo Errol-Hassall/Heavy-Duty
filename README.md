@@ -42,6 +42,8 @@ telemetry.
 - **Exercise library** — 36 seeded movements plus custom exercises; edit any
   movement's details or delete it entirely (delete also removes it from past
   sessions).
+- **Equipment at a glance** — the session editor shows each movement's type
+  (machine, barbell, dumbbell, cable, bodyweight) in brackets next to its name.
 - **Metric or imperial** — toggle kg/lb; weights are stored in kg.
 - **Responsive** — desktop sidebar and a mobile layout built for the gym floor.
 

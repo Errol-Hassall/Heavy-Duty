@@ -28,10 +28,16 @@ import {
   saveWorkoutFn,
 } from '#/server/api'
 import { relativeDate, todayISO } from '#/lib/dates'
-import { MUSCLE_LABELS, supersetBlocks, supersetLabels } from '#/lib/labels'
+import {
+  EQUIPMENT_LABELS,
+  MUSCLE_LABELS,
+  supersetBlocks,
+  supersetLabels,
+} from '#/lib/labels'
 import { useUnit } from '#/lib/preferences'
 import { formatLastPerformance, suggestNext } from '#/lib/progression'
 import type {
+  Equipment,
   Exercise,
   ExerciseListItem,
   LastPerformance,
@@ -64,6 +70,7 @@ interface DraftExercise {
   slug: string
   name: string
   muscleGroup: MuscleGroup
+  equipment: Equipment
   supersetGroup: number | null
   notes: string
   notesOpen: boolean
@@ -102,6 +109,7 @@ function toDraft(workout: WorkoutDetail, unit: WeightUnit): Draft {
         slug: exercise.slug,
         name: exercise.name,
         muscleGroup: exercise.muscleGroup,
+        equipment: exercise.equipment,
         supersetGroup: exercise.supersetGroup,
         notes: exercise.notes ?? '',
         notesOpen: Boolean(exercise.notes),
@@ -389,6 +397,7 @@ export function WorkoutEditor({
           slug: exercise.slug,
           name: exercise.name,
           muscleGroup: exercise.muscleGroup,
+          equipment: exercise.equipment,
           supersetGroup: null,
           notes: exercise.notes ?? '',
           notesOpen: false,
@@ -1038,9 +1047,14 @@ function ExerciseCard({
           </span>
 
           <div className="min-w-0 flex-1">
-            <h3 className="line-clamp-2 text-[15px] font-semibold leading-tight text-chalk">
-              {exercise.name}
-            </h3>
+            <div className="flex min-w-0 items-baseline gap-x-1.5">
+              <h3 className="line-clamp-2 text-[15px] font-semibold leading-tight text-chalk">
+                {exercise.name}
+              </h3>
+              <span className="shrink-0 text-xs font-normal text-smoke">
+                ({EQUIPMENT_LABELS[exercise.equipment]})
+              </span>
+            </div>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-smoke">
               <span>{MUSCLE_LABELS[exercise.muscleGroup]}</span>
               {label.isSuperset ? (

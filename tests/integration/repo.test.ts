@@ -560,6 +560,53 @@ describe('saveWorkout', () => {
   })
 })
 
+describe('workout exercise equipment', () => {
+  it('reports each exercise equipment and follows library edits', () => {
+    const id = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'in_progress',
+      templateSlug: null,
+    })
+    const custom = repo.createExercise({
+      name: 'Cable Y Raise',
+      muscleGroup: 'shoulders',
+      equipment: 'cable',
+      notes: null,
+    })
+    repo.saveWorkout(
+      payload(id, {
+        exercises: [
+          entry('deadlift', [working(100, 5)]),
+          entry('pull-up', [working(null, 8)]),
+          {
+            exerciseId: custom.id,
+            position: 2,
+            supersetGroup: null,
+            notes: null,
+            sets: [working(30, 10)],
+          },
+        ],
+      }),
+    )
+
+    const workout = repo.getWorkout(id)!
+    expect(workout.exercises.map((exercise) => exercise.equipment)).toEqual([
+      'barbell',
+      'bodyweight',
+      'cable',
+    ])
+
+    // Equipment edited on the library row follows through to open sessions.
+    repo.updateExercise(custom.id, {
+      name: 'Cable Y Raise',
+      muscleGroup: 'shoulders',
+      equipment: 'machine',
+      notes: null,
+    })
+    expect(repo.getWorkout(id)!.exercises[2].equipment).toBe('machine')
+  })
+})
+
 describe('last performance', () => {
   it('uses the latest completed session before the current one', () => {
     const older = repo.createWorkout({

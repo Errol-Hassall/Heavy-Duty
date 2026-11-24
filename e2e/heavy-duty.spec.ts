@@ -212,6 +212,16 @@ test('logs a full Chest & Back session with warm-ups, notes, supersets, autosave
     'Superset A',
   )
 
+  // The equipment type is shown in brackets next to each name.
+  await expect(exerciseCard(page, 'Dumbbell Flye')).toContainText('(Dumbbell)')
+  await expect(exerciseCard(page, 'Incline Bench Press')).toContainText(
+    '(Barbell)',
+  )
+  await expect(exerciseCard(page, 'Machine Pullover')).toContainText('(Machine)')
+  await expect(exerciseCard(page, 'Close-Grip Underhand Pulldown')).toContainText(
+    '(Cable)',
+  )
+
   // With no earlier completed session, the editor says so explicitly.
   await expect(exerciseCard(page, 'Dumbbell Flye')).toContainText(
     'First time logging this movement',
@@ -621,6 +631,8 @@ test('backfills a session, reorders/removes exercises, links supersets, and dele
   await expect(page.getByRole('button', { name: 'Completed' })).toBeDisabled()
 
   await addExercise(page, 'Barbell Curl')
+  // Picker-added exercises carry the equipment type as well.
+  await expect(exerciseCard(page, 'Barbell Curl')).toContainText('(Barbell)')
   await addExercise(page, 'Close-Grip Underhand Pulldown')
   await addExercise(page, 'Dumbbell Flye')
   await expect(page.locator('.card-surface h3')).toHaveText([
@@ -812,6 +824,8 @@ test('preloads the previous full-body session when starting it again', async ({
 
   await expect(page.locator('#workout-title')).toHaveValue('Full Body Starter')
   await expect(page.locator('.card-surface h3')).toHaveText(FULL_BODY_EXERCISES)
+  // The bodyweight movement is labelled like the loaded ones.
+  await expect(exerciseCard(page, 'Pull-Up')).toContainText('(Bodyweight)')
 
   // Drop the last exercise so the next session has a different list.
   await exerciseCard(page, 'Triceps Pressdown')
