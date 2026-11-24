@@ -39,6 +39,9 @@ telemetry.
   until the top of the 6–10 range, then add weight.
 - **History charts** — weight per session with reps shown on hover or tap.
 - **Bodyweight tracking** — log weight over time with a 30-day delta.
+- **Custom recovery window** — set how many hours you need between sessions
+  (default 96, any whole number up to 1440); the dashboard badge and progress
+  bar follow your setting.
 - **Exercise library** — 36 seeded movements plus custom exercises; edit any
   movement's details or delete it entirely (delete also removes it from past
   sessions).
@@ -250,9 +253,10 @@ also sets `no-new-privileges`.
 
 - **One working set per exercise**, taken to momentary muscular failure.
 - **Warm-ups are optional** and never counted toward volume.
-- **Recovery is part of the program.** The dashboard tracks days since your last
-  completed session and clears the 96-hour window after four days. It is a
-  guideline, not a green light — train only when you feel fully recovered.
+- **Recovery is part of the program.** The dashboard tracks time since your last
+  completed session against your recovery window — 96 hours by default,
+  adjustable to any whole number of hours (up to 1440) on the Today page. It is
+  a guideline, not a green light — train only when you feel fully recovered.
 - **Double progression**: stay at the same load and add reps until you reach 10,
   then add weight and restart at 6. The editor always shows the last completed
   weight and reps so the logbook is the only thing you need to beat.
@@ -276,7 +280,7 @@ src/
     db.ts              SQLite init, migrations, seeding
     repo.ts            repository and workout persistence
     api.ts             zod-validated server functions
-  lib/                 types, units, dates, progression, programs
+  lib/                 types, units, dates, recovery, progression, programs
   styles.css           Tailwind v4 theme and base styles
 tests/
   unit/                pure functions and validation schemas

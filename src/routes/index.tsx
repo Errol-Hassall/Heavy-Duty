@@ -8,6 +8,7 @@ import {
   Scale,
 } from 'lucide-react'
 import { BodyweightForm } from '#/components/bodyweight-form'
+import { RecoveryWindowForm } from '#/components/recovery-window-form'
 import { StartWorkoutButton } from '#/components/start-workout-button'
 import { TrendChart } from '#/components/trend-chart'
 import { Badge } from '#/components/ui/badge'
@@ -17,7 +18,6 @@ import { WorkoutRow } from '#/components/workout-row'
 import { getDashboardFn } from '#/server/api'
 import {
   addDaysISO,
-  daysSince,
   formatDate,
   formatShortDate,
   relativeDate,
@@ -25,7 +25,8 @@ import {
 } from '#/lib/dates'
 import { supersetLabels } from '#/lib/labels'
 import { nextProgram } from '#/lib/programs'
-import { useUnit } from '#/lib/preferences'
+import { useRecoveryHours, useUnit } from '#/lib/preferences'
+import { formatRecoveryDuration, recoveryStatus } from '#/lib/recovery'
 import { toDisplayWeight, formatWeight, formatWeightDelta } from '#/lib/units'
 import type { BodyMetric, DashboardData } from '#/lib/types'
 import { formatNumber } from '#/lib/utils'
@@ -108,10 +109,12 @@ function TodayCard({ data }: { data: DashboardData }) {
   const labels = supersetLabels(
     program.exercises.map((exercise) => exercise.superset ?? null),
   )
+  const windowHours = useRecoveryHours()
   const lastDate = data.lastCompleted?.date ?? null
-  const days = lastDate ? Math.max(0, daysSince(lastDate)) : null
-  const ready = days === null || days >= 4
-  const recoveryPct = days === null ? 0 : Math.min(100, (days / 4) * 100)
+  const recovery = recoveryStatus(lastDate, windowHours)
+  const days = recovery.days
+  const ready = days === null || recovery.ready
+  const recoveryPct = recovery.pct
 
   return (
     <Card className="overflow-hidden lg:col-span-2">
@@ -207,8 +210,8 @@ function TodayCard({ data }: { data: DashboardData }) {
               {days === null
                 ? 'Not started'
                 : ready
-                  ? '96h window cleared'
-                  : `${days} of 4 days`}
+                  ? `${windowHours}h window cleared`
+                  : `${recovery.elapsedHours}h of ${windowHours}h`}
             </span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-700">
@@ -225,9 +228,10 @@ function TodayCard({ data }: { data: DashboardData }) {
             {days === null
               ? 'Log your first session to start tracking recovery.'
               : ready
-                ? 'At least 96 hours have passed. Train only if you feel fully recovered.'
-                : `Mentzer recommended at least 96 hours between sessions. Give it ${4 - days} more ${4 - days === 1 ? 'day' : 'days'}.`}
+                ? `At least ${windowHours} hours have passed. Train only if you feel fully recovered.`
+                : `Your ${windowHours}h window clears in ${formatRecoveryDuration(recovery.remainingHours)}.`}
           </p>
+          <RecoveryWindowForm className="mt-3" />
         </div>
       </div>
     </Card>

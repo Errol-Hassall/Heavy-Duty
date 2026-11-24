@@ -919,3 +919,68 @@ test('edits an exercise and deletes one with logged history', async ({
     .first()
   await expect(row).toContainText('4 exercises')
 })
+
+test('customises the recovery window and flips the dashboard state', async ({
+  page,
+}) => {
+  // Reopen today's completed sessions so an older backfill becomes the most
+  // recent one. The suite runs serially against a throwaway database, so this
+  // does not affect any other test.
+  const reopen = async (title: string, index: number) => {
+    await page.goto('/workouts')
+    const row = page.getByRole('link').filter({ hasText: title }).nth(index)
+    await row.click()
+    await expect(page).toHaveURL(/\/workouts\/\d+$/)
+    const before = await saveCount(page)
+    await page.getByRole('button', { name: 'Reopen session' }).click()
+    await waitForSaveCount(page, before)
+  }
+
+  await reopen(CUSTOM_TITLE, 1)
+  await reopen(CUSTOM_TITLE, 0)
+
+  // The earlier test leaves a second Full Body session in progress, so target
+  // the completed row explicitly.
+  await page.goto('/workouts')
+  const fullBodyRow = page
+    .getByRole('link')
+    .filter({ hasText: 'Full Body Starter' })
+    .filter({ hasNotText: 'In progress' })
+  await fullBodyRow.click()
+  await expect(page).toHaveURL(/\/workouts\/\d+$/)
+  const beforeFullBody = await saveCount(page)
+  await page.getByRole('button', { name: 'Reopen session' }).click()
+  await waitForSaveCount(page, beforeFullBody)
+
+  // Backfill a completed session five days ago: 120h elapsed.
+  await page.goto('/workouts/new')
+  await page.getByLabel('Session date').fill(isoOffset(-5))
+  await page.getByRole('button', { name: /Blank session/ }).click()
+  await expect(page.getByText('Backfill · saved complete')).toBeVisible()
+  await page.getByRole('button', { name: 'Start blank session' }).click()
+  await expect(page).toHaveURL(/\/workouts\/\d+$/)
+
+  // Default 96h window: 120h is past it, so the dashboard says recovered.
+  await page.goto('/')
+  await expect(page.getByText('Recovered', { exact: true })).toBeVisible()
+  await expect(page.getByText('96h window cleared')).toBeVisible()
+
+  // Widen the window past the elapsed time: same history, now recovering.
+  const input = page.getByLabel('Recovery window in hours')
+  await input.fill('240')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByText('Recovery window saved.')).toBeVisible()
+  await expect(page.getByText('Recovering', { exact: true })).toBeVisible()
+  await expect(page.getByText('120h of 240h')).toBeVisible()
+
+  // The preference survives a reload, and invalid input is rejected without
+  // changing the stored window.
+  await page.reload()
+  await expect(page.getByText('120h of 240h')).toBeVisible()
+  await input.fill('0')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(
+    page.getByText('Use a whole number of hours between 1 and 1,440.'),
+  ).toBeVisible()
+  await expect(page.getByText('120h of 240h')).toBeVisible()
+})
