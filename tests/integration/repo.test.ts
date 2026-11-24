@@ -205,6 +205,247 @@ describe('createWorkout', () => {
   })
 })
 
+describe('createWorkout prefill from the previous session', () => {
+  const FULL_BODY_DEFAULT = [
+    'Leg Extension',
+    'Leg Press',
+    'Lying Leg Curl',
+    'Standing Calf Raise',
+    'Deadlift',
+    'Barbell Row',
+    'Pull-Up',
+    'Dumbbell Flye',
+    'Incline Bench Press',
+    'Lateral Raise',
+    'Barbell Curl',
+    'Triceps Pressdown',
+  ]
+
+  it('copies the latest completed session of the same template, with cleared loads', () => {
+    const previous = repo.createWorkout({
+      date: '2026-11-10',
+      status: 'completed',
+      templateSlug: 'full-body',
+    })
+    repo.saveWorkout(
+      payload(previous, {
+        date: '2026-11-10',
+        exercises: [
+          entry(
+            'dumbbell-flye',
+            [warmup(30, 12), working(60, 8)],
+            { position: 0, supersetGroup: 4, notes: 'Tuck the elbows' },
+          ),
+          entry('incline-press', [working(70, 9)], {
+            position: 1,
+            supersetGroup: 4,
+          }),
+          entry('deadlift', [working(100, 5)], {
+            position: 2,
+            notes: 'Stop when form breaks',
+          }),
+        ],
+      }),
+    )
+
+    const id = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'in_progress',
+      templateSlug: 'full-body',
+    })
+    const workout = repo.getWorkout(id)!
+
+    // The program name and template survive; the list comes from last time.
+    expect(workout.title).toBe('Full Body Starter')
+    expect(workout.templateSlug).toBe('full-body')
+    expect(workout.exercises.map((exercise) => exercise.name)).toEqual([
+      'Dumbbell Flye',
+      'Incline Bench Press',
+      'Deadlift',
+    ])
+    expect(workout.exercises.map((exercise) => exercise.position)).toEqual([
+      0, 1, 2,
+    ])
+    expect(
+      workout.exercises.map((exercise) => exercise.supersetGroup),
+    ).toEqual([1, 1, null])
+    expect(workout.exercises[0].notes).toBe('Tuck the elbows')
+    expect(workout.exercises[2].notes).toBe('Stop when form breaks')
+
+    // Warm-up slots carry over, but every load starts empty.
+    expect(workout.exercises[0].sets.map((set) => set.kind)).toEqual([
+      'warmup',
+      'working',
+    ])
+    for (const exercise of workout.exercises) {
+      for (const set of exercise.sets) {
+        expect(set.weightKg).toBeNull()
+        expect(set.reps).toBeNull()
+      }
+    }
+
+    // The previous session is untouched.
+    const source = repo.getWorkout(previous)!
+    expect(source.exercises[0].sets[1]).toMatchObject({ weightKg: 60, reps: 8 })
+  })
+
+  it('prefers the most recent completed session over older ones', () => {
+    const older = repo.createWorkout({
+      date: '2026-11-10',
+      status: 'completed',
+      templateSlug: 'full-body',
+    })
+    repo.saveWorkout(
+      payload(older, { exercises: [entry('deadlift', [working(100, 5)])] }),
+    )
+    const newer = repo.createWorkout({
+      date: '2026-11-17',
+      status: 'completed',
+      templateSlug: 'full-body',
+    })
+    repo.saveWorkout(
+      payload(newer, {
+        exercises: [
+          entry('pull-up', [working(null, 8)]),
+          entry('barbell-curl', [working(30, 8)]),
+        ],
+      }),
+    )
+
+    const id = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'in_progress',
+      templateSlug: 'full-body',
+    })
+    expect(repo.getWorkout(id)!.exercises.map((exercise) => exercise.name)).toEqual([
+      'Pull-Up',
+      'Barbell Curl',
+    ])
+  })
+
+  it('ignores in-progress sessions and falls back to the default list on first use', () => {
+    const open = repo.createWorkout({
+      date: '2026-11-17',
+      status: 'in_progress',
+      templateSlug: 'full-body',
+    })
+    repo.saveWorkout(
+      payload(open, {
+        status: 'in_progress',
+        exercises: [entry('pull-up', [working(null, 8)])],
+      }),
+    )
+
+    const id = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'in_progress',
+      templateSlug: 'full-body',
+    })
+    expect(repo.getWorkout(id)!.exercises.map((exercise) => exercise.name)).toEqual(
+      FULL_BODY_DEFAULT,
+    )
+  })
+
+  it('falls back to the default list when the previous session has no exercises', () => {
+    const empty = repo.createWorkout({
+      date: '2026-11-10',
+      status: 'completed',
+      templateSlug: 'full-body',
+    })
+    repo.saveWorkout(payload(empty, { exercises: [] }))
+
+    const id = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'in_progress',
+      templateSlug: 'full-body',
+    })
+    expect(repo.getWorkout(id)!.exercises.map((exercise) => exercise.name)).toEqual(
+      FULL_BODY_DEFAULT,
+    )
+  })
+
+  it('does not leak one template history into another template', () => {
+    const fullBody = repo.createWorkout({
+      date: '2026-11-10',
+      status: 'completed',
+      templateSlug: 'full-body',
+    })
+    repo.saveWorkout(
+      payload(fullBody, { exercises: [entry('pull-up', [working(null, 8)])] }),
+    )
+
+    const id = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'in_progress',
+      templateSlug: 'chest-back',
+    })
+    expect(repo.getWorkout(id)!.exercises.map((exercise) => exercise.name)).toEqual([
+      'Dumbbell Flye',
+      'Incline Bench Press',
+      'Machine Pullover',
+      'Close-Grip Underhand Pulldown',
+      'Deadlift',
+    ])
+  })
+})
+
+describe('dashboard template exercise counts', () => {
+  it('reports the latest completed session per template and ignores open ones', () => {
+    const chestBack = repo.createWorkout({
+      date: '2026-11-10',
+      status: 'completed',
+      templateSlug: 'chest-back',
+    })
+    repo.saveWorkout(
+      payload(chestBack, {
+        exercises: [
+          entry('dumbbell-flye', [working(60, 8)]),
+          entry('incline-press', [working(70, 9)]),
+        ],
+      }),
+    )
+    const legsAbs = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'in_progress',
+      templateSlug: 'legs-abs',
+    })
+
+    // The open session has five default exercises but is not counted yet.
+    expect(repo.getDashboard().templateExerciseCounts).toEqual({
+      'chest-back': 2,
+    })
+
+    repo.saveWorkout(
+      payload(legsAbs, {
+        status: 'completed',
+        exercises: [
+          entry('leg-extension', [working(50, 10)]),
+          entry('leg-press', [working(100, 8)]),
+          entry('leg-curl', [working(40, 9)]),
+          entry('standing-calf-raise', [working(60, 12)]),
+          entry('weighted-decline-situp', [working(null, 15)]),
+        ],
+      }),
+    )
+    expect(repo.getDashboard().templateExerciseCounts).toEqual({
+      'chest-back': 2,
+      'legs-abs': 5,
+    })
+
+    // A completed session left empty does not appear.
+    const emptyFullBody = repo.createWorkout({
+      date: '2026-11-18',
+      status: 'completed',
+      templateSlug: 'full-body',
+    })
+    repo.saveWorkout(payload(emptyFullBody, { exercises: [] }))
+    expect(repo.getDashboard().templateExerciseCounts).toEqual({
+      'chest-back': 2,
+      'legs-abs': 5,
+    })
+  })
+})
+
 describe('saveWorkout', () => {
   it('persists sets, warm-ups, notes, and normalized supersets', () => {
     const id = repo.createWorkout({

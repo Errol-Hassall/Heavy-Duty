@@ -133,6 +133,12 @@ export interface DashboardData {
     templateSlug: string | null
   } | null
   bodyweight: BodyMetric[]
+  /**
+   * Exercise count of the latest completed session per program template.
+   * Only templates with a non-empty previous session appear, so consumers
+   * fall back to the program's default list otherwise.
+   */
+  templateExerciseCounts: Record<string, number>
   totals: {
     workouts: number
     workingSets: number

@@ -1,3 +1,4 @@
+import type { DatabaseSync } from 'node:sqlite'
 import { getDb } from './db'
 import { getProgram } from '#/lib/programs'
 import type {
@@ -378,10 +379,128 @@ export interface CreateWorkoutInput {
   title?: string
 }
 
+interface ExerciseStructure {
+  exerciseId: number
+  position: number
+  supersetGroup: number | null
+  notes: string | null
+  warmupPositions: number[]
+}
+
+/**
+ * The latest completed session of this template as a list of exercises to
+ * preload. Null when there is nothing to copy (first use, or the previous
+ * session was left empty), so the caller falls back to the program's default
+ * list.
+ */
+function latestSessionByTemplate(
+  db: DatabaseSync,
+  templateSlug: string,
+): ExerciseStructure[] | null {
+  const row = db
+    .prepare(
+      `SELECT id FROM workouts
+       WHERE status = 'completed' AND template_slug = ?
+       ORDER BY date DESC, id DESC
+       LIMIT 1`,
+    )
+    .get(templateSlug) as Row | undefined
+  if (!row) return null
+
+  const workoutId = Number(row.id)
+  const exerciseRows = db
+    .prepare(
+      `SELECT we.id, we.exercise_id, we.position, we.superset_group, we.notes
+       FROM workout_exercises we
+       WHERE we.workout_id = ?
+       ORDER BY we.position ASC, we.id ASC`,
+    )
+    .all(workoutId) as Row[]
+  if (exerciseRows.length === 0) return null
+
+  const warmupsByExercise = new Map<number, number[]>()
+  const setRows = db
+    .prepare(
+      `SELECT we.id AS workout_exercise_id, s.position
+       FROM workout_sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+       WHERE we.workout_id = ? AND s.kind = 'warmup'
+       ORDER BY s.position ASC, s.id ASC`,
+    )
+    .all(workoutId) as Row[]
+  for (const setRow of setRows) {
+    const key = Number(setRow.workout_exercise_id)
+    warmupsByExercise.set(key, [
+      ...(warmupsByExercise.get(key) ?? []),
+      Number(setRow.position),
+    ])
+  }
+
+  return exerciseRows.map((exerciseRow) => ({
+    exerciseId: Number(exerciseRow.exercise_id),
+    position: Number(exerciseRow.position),
+    supersetGroup: num(exerciseRow.superset_group),
+    notes: exerciseRow.notes === null ? null : str(exerciseRow.notes),
+    warmupPositions: warmupsByExercise.get(Number(exerciseRow.id)) ?? [],
+  }))
+}
+
+function insertExerciseStructure(
+  db: DatabaseSync,
+  workoutId: number,
+  items: ExerciseStructure[],
+): void {
+  const insertExercise = db.prepare(
+    `INSERT INTO workout_exercises (workout_id, exercise_id, position, superset_group, notes)
+     VALUES (?, ?, ?, ?, ?)`,
+  )
+  const insertSet = db.prepare(
+    `INSERT INTO workout_sets (workout_exercise_id, kind, position, weight_kg, reps)
+     VALUES (?, ?, ?, NULL, NULL)`,
+  )
+  for (const item of items) {
+    const inserted = insertExercise.run(
+      workoutId,
+      item.exerciseId,
+      item.position,
+      item.supersetGroup,
+      item.notes,
+    )
+    const workoutExerciseId = Number(inserted.lastInsertRowid)
+    for (const position of item.warmupPositions) {
+      insertSet.run(workoutExerciseId, 'warmup', position)
+    }
+    insertSet.run(workoutExerciseId, 'working', 0)
+  }
+}
+
 export function createWorkout(input: CreateWorkoutInput): number {
   const db = getDb()
   const program = getProgram(input.templateSlug)
   const title = input.title?.trim() || program?.name || 'Custom session'
+
+  // Preload the exercises from the latest completed session of this program;
+  // the default list only applies on first use.
+  const structure: ExerciseStructure[] = []
+  if (program) {
+    const previous = latestSessionByTemplate(db, program.slug)
+    if (previous) {
+      structure.push(...previous)
+    } else {
+      const findExercise = db.prepare('SELECT id FROM exercises WHERE slug = ?')
+      program.exercises.forEach((exercise, index) => {
+        const exerciseRow = findExercise.get(exercise.slug) as Row | undefined
+        if (!exerciseRow) return
+        structure.push({
+          exerciseId: Number(exerciseRow.id),
+          position: index,
+          supersetGroup: exercise.superset ?? null,
+          notes: exercise.note ?? null,
+          warmupPositions: [],
+        })
+      })
+    }
+  }
 
   db.exec('BEGIN')
   try {
@@ -393,32 +512,7 @@ export function createWorkout(input: CreateWorkoutInput): number {
       .run(input.date, title, input.status, program?.slug ?? null)
     const workoutId = Number(result.lastInsertRowid)
 
-    if (program) {
-      const findExercise = db.prepare('SELECT id FROM exercises WHERE slug = ?')
-      const insertExercise = db.prepare(
-        `INSERT INTO workout_exercises (workout_id, exercise_id, position, superset_group, notes)
-         VALUES (?, ?, ?, ?, ?)`,
-      )
-      const insertSet = db.prepare(
-        `INSERT INTO workout_sets (workout_exercise_id, kind, position, weight_kg, reps)
-         VALUES (?, 'working', 0, NULL, NULL)`,
-      )
-
-      program.exercises.forEach((programExercise, index) => {
-        const exerciseRow = findExercise.get(programExercise.slug) as
-          | Row
-          | undefined
-        if (!exerciseRow) return
-        const inserted = insertExercise.run(
-          workoutId,
-          Number(exerciseRow.id),
-          index,
-          programExercise.superset ?? null,
-          programExercise.note ?? null,
-        )
-        insertSet.run(Number(inserted.lastInsertRowid))
-      })
-    }
+    insertExerciseStructure(db, workoutId, structure)
 
     db.exec('COMMIT')
     return workoutId
@@ -443,33 +537,19 @@ export function repeatWorkout(id: number, date: string): number | null {
       .run(date, source.title, source.templateSlug, source.notes)
     const workoutId = Number(result.lastInsertRowid)
 
-    const insertExercise = db.prepare(
-      `INSERT INTO workout_exercises (workout_id, exercise_id, position, superset_group, notes)
-       VALUES (?, ?, ?, ?, ?)`,
+    insertExerciseStructure(
+      db,
+      workoutId,
+      source.exercises.map((exercise) => ({
+        exerciseId: exercise.exerciseId,
+        position: exercise.position,
+        supersetGroup: exercise.supersetGroup,
+        notes: exercise.notes,
+        warmupPositions: exercise.sets
+          .filter((set) => set.kind === 'warmup')
+          .map((set) => set.position),
+      })),
     )
-    const insertSet = db.prepare(
-      `INSERT INTO workout_sets (workout_exercise_id, kind, position, weight_kg, reps)
-       VALUES (?, 'working', 0, NULL, NULL)`,
-    )
-
-    for (const exercise of source.exercises) {
-      const inserted = insertExercise.run(
-        workoutId,
-        exercise.exerciseId,
-        exercise.position,
-        exercise.supersetGroup,
-        exercise.notes,
-      )
-      const workoutExerciseId = Number(inserted.lastInsertRowid)
-      for (const set of exercise.sets.filter((item) => item.kind === 'warmup')) {
-        const insertWarmup = db.prepare(
-          `INSERT INTO workout_sets (workout_exercise_id, kind, position, weight_kg, reps)
-           VALUES (?, 'warmup', ?, NULL, NULL)`,
-        )
-        insertWarmup.run(workoutExerciseId, set.position)
-      }
-      insertSet.run(workoutExerciseId)
-    }
 
     db.exec('COMMIT')
     return workoutId
@@ -682,6 +762,33 @@ export function getDashboard(): DashboardData {
     )
     .get() as Row
 
+  const templateRows = db
+    .prepare(
+      `
+      SELECT template_slug, exercise_count FROM (
+        SELECT
+          w.template_slug,
+          COUNT(we.id) AS exercise_count,
+          ROW_NUMBER() OVER (
+            PARTITION BY w.template_slug
+            ORDER BY w.date DESC, w.id DESC
+          ) AS rn
+        FROM workouts w
+        LEFT JOIN workout_exercises we ON we.workout_id = w.id
+        WHERE w.status = 'completed'
+          AND w.template_slug IS NOT NULL
+        GROUP BY w.id, w.template_slug
+      )
+      WHERE rn = 1 AND exercise_count > 0
+      `,
+    )
+    .all() as Row[]
+
+  const templateExerciseCounts: Record<string, number> = {}
+  for (const row of templateRows) {
+    templateExerciseCounts[str(row.template_slug)] = Number(row.exercise_count)
+  }
+
   return {
     recent: listWorkouts(6),
     lastCompleted: lastCompletedRow
@@ -696,6 +803,7 @@ export function getDashboard(): DashboardData {
         }
       : null,
     bodyweight: listBodyMetrics(),
+    templateExerciseCounts,
     totals: {
       workouts: Number(totals.workouts ?? 0),
       workingSets: Number(totals.working_sets ?? 0),

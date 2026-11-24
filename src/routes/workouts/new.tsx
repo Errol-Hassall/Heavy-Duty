@@ -28,7 +28,10 @@ function NewWorkoutPage() {
 
   const program = PROGRAMS.find((item) => item.slug === selected) ?? null
   const isPast = date < todayISO()
-  const exerciseCount = program?.exercises.length ?? 0
+  // A previous completed session of this program preloads its own list.
+  const exerciseCount = program
+    ? (data.templateExerciseCounts[program.slug] ?? program.exercises.length)
+    : 0
 
   return (
     <div>

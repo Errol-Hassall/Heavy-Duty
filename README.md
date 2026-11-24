@@ -31,7 +31,9 @@ telemetry.
 - **Autosave** — the editor saves as you type. Close the tab mid-session and
   resume later.
 - **Heavy Duty programs** — Chest & Back, Legs & Abs, Shoulders & Arms, and
-  Full Body, with the next program suggested automatically.
+  Full Body, with the next program suggested automatically. Each session
+  preloads the exercises from your last completed session of that type; the
+  default list only applies on first use.
 - **Double progression** — each exercise shows the weight and reps from its
   last completed session, however long ago that was, plus a target: add reps
   until the top of the 6–10 range, then add weight.

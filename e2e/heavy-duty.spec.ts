@@ -29,6 +29,21 @@ const CHEST_BACK_EXERCISES = [
   'Deadlift',
 ]
 
+const FULL_BODY_EXERCISES = [
+  'Leg Extension',
+  'Leg Press',
+  'Lying Leg Curl',
+  'Standing Calf Raise',
+  'Deadlift',
+  'Barbell Row',
+  'Pull-Up',
+  'Dumbbell Flye',
+  'Incline Bench Press',
+  'Lateral Raise',
+  'Barbell Curl',
+  'Triceps Pressdown',
+]
+
 test('starts empty, navigates the shell, and renders not-found pages', async ({
   page,
 }) => {
@@ -783,4 +798,43 @@ test('frames separate superset groups independently', async ({ page }) => {
   await waitForSaved(page)
   await page.reload()
   await expect(page.locator('[data-superset-group]')).toHaveCount(2)
+})
+
+test('preloads the previous full-body session when starting it again', async ({
+  page,
+}) => {
+  // First use of Full Body loads the program's default list.
+  await page.goto('/workouts/new')
+  await page.getByRole('button', { name: /Full Body Starter/ }).click()
+  await expect(page.getByText('12 exercises loaded')).toBeVisible()
+  await page.getByRole('button', { name: 'Start Full body' }).click()
+  await expect(page).toHaveURL(/\/workouts\/\d+$/)
+
+  await expect(page.locator('#workout-title')).toHaveValue('Full Body Starter')
+  await expect(page.locator('.card-surface h3')).toHaveText(FULL_BODY_EXERCISES)
+
+  // Drop the last exercise so the next session has a different list.
+  await exerciseCard(page, 'Triceps Pressdown')
+    .getByRole('button', { name: 'Remove exercise' })
+    .click()
+  await expect(page.locator('.card-surface h3')).toHaveCount(11)
+
+  await fillWorkingSet(page, 'Deadlift', 80, 5)
+  await waitForSaved(page)
+
+  await page.getByRole('button', { name: 'Finish workout' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toContainText('Session logged')
+  await dialog.getByRole('button', { name: 'Back to logbook' }).click()
+
+  // Starting Full Body again preloads the previous session's list, not the
+  // twelve-exercise default. The new-workout page reflects that too.
+  await page.goto('/workouts/new')
+  await expect(page.getByText('11 exercises loaded')).toBeVisible()
+  await page.getByRole('button', { name: 'Start Full body' }).click()
+  await expect(page).toHaveURL(/\/workouts\/\d+$/)
+  await expect(page.locator('#workout-title')).toHaveValue('Full Body Starter')
+  await expect(page.locator('.card-surface h3')).toHaveText(
+    FULL_BODY_EXERCISES.filter((name) => name !== 'Triceps Pressdown'),
+  )
 })
